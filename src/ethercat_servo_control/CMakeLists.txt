@@ -26,14 +26,11 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
   )
 
-<<<<<<< HEAD
 # Add setcap command as a post-install step //Didnt work
 # install(CODE "execute_process(COMMAND sudo setcap cap_net_raw+ep ${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/motor_control_node)")
 # install(CODE "execute_process(COMMAND sudo setcap cap_net_admin,cap_net_raw=eip ~/ros2_ws/Servant_ws/install/ethercat_servo_control/lib/ethercat_servo_control/motor_control_node)")
 
 
-=======
->>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
 install(
   DIRECTORY include
   DESTINATION include
