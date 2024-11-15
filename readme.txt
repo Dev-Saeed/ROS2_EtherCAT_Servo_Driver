@@ -10,7 +10,6 @@ go to home directory then:
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
     sudo make install
 
-
 ---------------------------------------------------------------------------
 
 To give Permissions to the node:
@@ -48,3 +47,8 @@ To give Permissions to the node:
        "I dont know how it take me all the week to figure out this but its ok"
 
        
+
+
+
+
+
