@@ -18,6 +18,10 @@
 #include <thread>
 #include <iostream> 
 
+#include "servo_msgs/srv/set_acceleration.hpp"
+#include "servo_msgs/srv/set_kvp.hpp"
+
+
 class MotorControlNode : public rclcpp::Node
 {
 public:
@@ -35,13 +39,27 @@ private:
     // Callback function for processing /cmd_vel messages
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg);
     
+    // Callback for SetAcceleration
+    void set_acceleration_callback(
+        const std::shared_ptr<servo_msgs::srv::SetAcceleration::Request> request,
+        std::shared_ptr<servo_msgs::srv::SetAcceleration::Response> response);
+
+    // Callback for SetKvp
+    void set_kvp_callback(
+        const std::shared_ptr<servo_msgs::srv::SetKvp::Request> request,
+        std::shared_ptr<servo_msgs::srv::SetKvp::Response> response);
+
+    // Member variables
+    rclcpp::Service<servo_msgs::srv::SetAcceleration>::SharedPtr acceleration_service_;
+    rclcpp::Service<servo_msgs::srv::SetKvp>::SharedPtr kvp_service_;
 
     // Helper functions for motor control
+
+    void set_speed_control_mode(int slave_id);
     void set_motor_acceleration(int acceleration, int slave_id);
     void set_motor_kvp(int value, int slave_id);
-    void set_speed_control_mode(int slave_id);
     void motorTestLoop(int slave_id);
-    
+
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_subscription_;
     
     // Helper functions for network interface and MAC address

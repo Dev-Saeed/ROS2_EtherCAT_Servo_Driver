@@ -12,13 +12,22 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(soem REQUIRED)
+find_package(servo_msgs REQUIRED)
+
+
 
 
 add_executable(motor_control_node src/motor_control_node.cpp)
-ament_target_dependencies(motor_control_node rclcpp geometry_msgs soem)
+ament_target_dependencies(motor_control_node rclcpp geometry_msgs soem servo_msgs)
 
-include_directories(include)
+include_directories(
+  include
+)
+
 target_link_libraries(motor_control_node soem)
+
+
+
 
 # Install the executable
 install(TARGETS
@@ -26,9 +35,6 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
   )
 
-# Add setcap command as a post-install step //Didnt work
-# install(CODE "execute_process(COMMAND sudo setcap cap_net_raw+ep ${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/motor_control_node)")
-# install(CODE "execute_process(COMMAND sudo setcap cap_net_admin,cap_net_raw=eip ~/ros2_ws/Servant_ws/install/ethercat_servo_control/lib/ethercat_servo_control/motor_control_node)")
 
 
 install(

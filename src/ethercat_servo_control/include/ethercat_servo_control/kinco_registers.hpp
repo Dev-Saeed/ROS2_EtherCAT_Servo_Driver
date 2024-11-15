@@ -139,6 +139,15 @@ const uint16_t QUICK_STOP_MODE = 0x605A;         // Quick stop configuration
     (value) == CONTROL_WORD_HOME ? "CONTROL_HOME" : \
     (value) == CONTROL_WORD_CLEAR ? "CONTROL_CLEAR_SHOOTING" : "UNKNOWN_CONTROL_WORD")
 
+#define OPERATION_MODE_NAME(value) \
+    ((value) == POSITION_CONTROL_MODE ? "POSITION_CONTROL_MODE" : \
+    (value) == VELOCITY_POSE_MODE ? "VELOCITY_POSE_MODE" : \
+    (value) == VELOCITY_FAST_MODE ? "VELOCITY_FAST_MODE" : \
+    (value) == TORQUE_CONTROL_MODE ? "TORQUE_CONTROL_MODE" : \
+    (value) == PULSE_TRAIN_CONTROL_MODE ? "PULSE_TRAIN_CONTROL_MODE" : \
+    (value) == HOMING_MODE ? "HOMING_MODE" : \
+    (value) == DIFFERENTIAL_MODE ? "DIFFERENTIAL_MODE" : "UNKNOWN_OPERATION_MODE")
+
 #define STATUS_WORD_NAME(value) \
     ((value) == 0x0001 ? "READY_ON" : \
     (value) == 0x0002 ? "SWITCH_ON" : \

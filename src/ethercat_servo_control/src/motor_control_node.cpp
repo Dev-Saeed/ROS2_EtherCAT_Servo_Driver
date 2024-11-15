@@ -6,6 +6,8 @@ Note: All registers and addresses can be referenced on the Kinco Servo user manu
 #include "ethercat_servo_control/motor_control_node.hpp"
 #include "ethercat_servo_control/kinco_registers.hpp"
 
+
+
 using namespace std::chrono_literals;
 
 // Constructor: Initializes the ROS2 node and subscription
@@ -32,13 +34,25 @@ MotorControlNode::MotorControlNode()
     // Subscribe to the /cmd_vel topic for velocity commands
     cmd_vel_subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
         "/cmd_vel", 10, std::bind(&MotorControlNode::cmd_vel_callback, this, std::placeholders::_1));
-}
+
+    // Create the SetAcceleration service
+    acceleration_service_ = this->create_service<servo_msgs::srv::SetAcceleration>(
+        "set_acceleration", 
+        std::bind(&MotorControlNode::set_acceleration_callback, this, std::placeholders::_1, std::placeholders::_2));
+
+    // Create the SetKvp service
+    kvp_service_ = this->create_service<servo_msgs::srv::SetKvp>(
+        "set_kvp", 
+        std::bind(&MotorControlNode::set_kvp_callback, this, std::placeholders::_1, std::placeholders::_2));
+   }
 
 // Function to initialize the motor
 bool MotorControlNode::initialize_motor(int slave_id)
 {
-    std::string command= "terminator-terminal -- bash -c \"echo sudo setcap cap_net_admin,cap_net_raw=eip ~/Portable-ros2_ws/Servant_ws/install/ethercat_servo_control/lib/ethercat_servo_control/motor_control_node  \"{}\" && exit ;bash\"";
-    std::system(command.c_str());
+    // Declare some parameters
+    this->declare_parameter("debug", 0); 
+    int debug_param = this->get_parameter("debug").as_int();
+
     // Initialize EtherCAT on the specified network interface
     char IOmap[4096];
     if (ec_init(network_interface_.c_str()))
@@ -116,8 +130,11 @@ bool MotorControlNode::initialize_motor(int slave_id)
     set_motor_acceleration(init_acc, slave_id);
     set_motor_kvp(init_Kvp, slave_id);
 
-    // Test the motor 
-    motorTestLoop(slave_id);
+    // Check if debug is enabled
+    if (debug_param == 1) {
+        motorTestLoop(slave_id);
+    }
+    
     return true; 
 }
 
@@ -255,8 +272,7 @@ void MotorControlNode::cmd_vel_callback(const geometry_msgs::msg::Twist::SharedP
 
 // Function to test the work of the motor
 void MotorControlNode::motorTestLoop(int slave_id) {
-    int32_t read_value;
-    int psize = sizeof(read_value);
+    
 
     while (rclcpp::ok()) {
         // Prompt user for RPM input or 'q' to quit
@@ -266,49 +282,49 @@ void MotorControlNode::motorTestLoop(int slave_id) {
 
         // Check if the input is 'q' for quitting
         if (input == "q") {
-            RCLCPP_INFO(this->get_logger(), "Exiting motor test loop. EtherCAT closed.");
+            RCLCPP_INFO(this->get_logger(), "Exiting Motor Debuging Mode!");
             break;
         }
 
         // Try to convert the input to an integer RPM value
         try {
-            int rpm = std::stoi(input);
+            int32_t rpm = std::stoi(input);
+            if (rpm > 1000) { RCLCPP_INFO(this->get_logger(), "You Can't Set Above 1000 RPM in Test Mode!"); continue; }
+
+            int32_t read_real;
+            int psize_real = sizeof(read_real);
+            uint16_t read_word;
+            int psize_word = sizeof(read_word);
+            int8_t read_mode;
+            int psize_mode=sizeof(read_mode);
 
             // Run the motor test with the specified RPM
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
             send_motor_speed(rpm, slave_id);
-            RCLCPP_INFO(this->get_logger(), "Sent motor speed command: %d RPM", rpm);
+            RCLCPP_INFO(this->get_logger(), "Sent Motor Target Speed:  %d RPM", rpm);
+            rclcpp::sleep_for(std::chrono::seconds(1));
+            ec_SDOread(slave_id, REAL_SPEED, 0x00, FALSE, &psize_real, &read_real, ethercat_timeout_);
+            int64_t read_RPM = static_cast<int64_t>(read_real) * 1875 / (512 * encoder_resiulution);
+            RCLCPP_WARN(this->get_logger(), "Motor %d Real Speed:       %ld RPM", slave_id, read_RPM);
 
-            ec_SDOread(slave_id, REAL_SPEED, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
-            read_value = read_value * 1875 / (512 * encoder_resiulution);
-            RCLCPP_ERROR(this->get_logger(), "Motor %d Target Speed: %d ", slave_id, read_value);
+            // Read Status, Control and Mode Wrods
+            ec_SDOread(slave_id, STATUS_WORD, 0x00, FALSE, &psize_word, &read_word, ethercat_timeout_);
+            std::string status_name = STATUS_WORD_NAME(read_word);
+            RCLCPP_INFO(this->get_logger(), "Motor %d Status Word:      0x%02X (%s)", slave_id, read_word, status_name.c_str());
+            ec_SDOread(slave_id, CONTROL_WORD, 0x00, FALSE, &psize_word, &read_word, ethercat_timeout_);
+            std::string control_name = CONTROL_WORD_NAME(read_word);
+            RCLCPP_INFO(this->get_logger(), "Motor %d Control Word:     0x%02X (%s)", slave_id, read_word, control_name.c_str());
+            ec_SDOread( slave_id, OPERATION_MODE, 0x00, FALSE,&psize_mode, &read_mode, ethercat_timeout_);
+            std::string mode_name = OPERATION_MODE_NAME(read_mode);
+            RCLCPP_INFO(this->get_logger(), "Motor %d Mode Word:        0x%02X (%s)", slave_id, read_mode, mode_name.c_str());
 
-            uint16_t read_value;
-            psize = sizeof(read_value);
-            ec_SDOread(slave_id, STATUS_WORD, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
-            std::string status_name = STATUS_WORD_NAME(read_value);
-            RCLCPP_INFO(this->get_logger(), "Motor %d Status Word: 0x%02X (%s)", slave_id, read_value, status_name.c_str());
+            rclcpp::sleep_for(std::chrono::seconds(8));
             
-            ec_SDOread(slave_id, CONTROL_WORD, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
-            std::string control_name = STATUS_WORD_NAME(read_value);
-            RCLCPP_INFO(this->get_logger(), "Motor %d Control Word: 0x%02X (%s)", slave_id, read_value, control_name.c_str());
-
-            // Read back the state to verify seted control mode
-            int8_t control_mode;
-            int psize=sizeof(control_mode_);
-            ec_SDOread( slave_id, OPERATION_MODE, 0x00, FALSE,&psize, &control_mode, ethercat_timeout_);
-            RCLCPP_INFO(this->get_logger(), "OPERATION_MODE: %d ", control_mode_);
-
-            std::this_thread::sleep_for(std::chrono::seconds(5));
-
+            // Reset motor speed to zero
             send_motor_speed(0, slave_id);
-            RCLCPP_INFO(this->get_logger(), "Sent motor speed command: 0 RPM");
-
-            ec_SDOread(slave_id, REAL_SPEED, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
-            read_value = read_value * 1875 / (512 * encoder_resiulution);
-            RCLCPP_ERROR(this->get_logger(), "Motor %d Target Speed: %d ", slave_id, read_value);
-            
+            RCLCPP_INFO(this->get_logger(), "Sent motor Target Speed:  0 RPM");
+            rclcpp::sleep_for(std::chrono::seconds(1));
+            ec_SDOread(slave_id, REAL_SPEED, 0x00, FALSE, &psize_real, &read_real, ethercat_timeout_);
+            RCLCPP_WARN(this->get_logger(), "Motor %d Real Speed:       %d RPM", slave_id, read_real);
         }
          
         catch (const std::invalid_argument&) {
@@ -316,6 +332,26 @@ void MotorControlNode::motorTestLoop(int slave_id) {
             std::cout << "Invalid input. Please enter a number for RPM or 'q' to quit." << std::endl;
         }
     }
+}
+
+// Service Callback Function
+void MotorControlNode::set_acceleration_callback(
+    const std::shared_ptr<servo_msgs::srv::SetAcceleration::Request> request,
+    std::shared_ptr<servo_msgs::srv::SetAcceleration::Response> response) 
+{
+    MotorControlNode::set_motor_acceleration(request->acceleration, request->slave_id);
+    response->success = true;
+    response->message = "Acceleration set successfully.";
+}
+
+// Service Callback Function
+void MotorControlNode::set_kvp_callback(
+    const std::shared_ptr<servo_msgs::srv::SetKvp::Request> request,
+    std::shared_ptr<servo_msgs::srv::SetKvp::Response> response) 
+{
+    MotorControlNode::set_motor_kvp(request->kvp, request->slave_id);
+    response->success = true;
+    response->message = "Kvp set successfully.";
 }
 
 // Main function
