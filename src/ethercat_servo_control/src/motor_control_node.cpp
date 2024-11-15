@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* 
 Note: All registers and addresses can be referenced on the Kinco Servo user manual.
 
@@ -7,20 +8,35 @@ Note: All registers and addresses can be referenced on the Kinco Servo user manu
 #include "ethercat_servo_control/kinco_registers.hpp"
 
 using namespace std::chrono_literals;
+=======
+#include "ethercat_servo_control/motor_control_node.hpp"
+#include <cmath>
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
 
 // Constructor: Initializes the ROS2 node and subscription
 MotorControlNode::MotorControlNode()
 : Node("motor_control_node"),
   wheel_base_(0.5),  // Example: 0.5 meters
+<<<<<<< HEAD
   wheel_radius_(0.1),  // Example: 0.2 meters
   reduction_ratio_(1),
   control_mode_(VELOCITY_POSE_MODE),  // Speed control mode with Velocity-Position control loops are active
+=======
+  wheel_radius_(0.2),  // Example: 0.1 meters
+  reduction_ratio_(20),
+  acceleration_(1000),  // Default acceleration
+  control_mode_(0x03),  // Speed control mode
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
   motor_initialized_(false),
   ec_state_(false),
   network_interface_("enp3s0")  // Set your default network interface here
 {
+<<<<<<< HEAD
     // Get MAC address from file  and determine the network interface 
     // If you want to use the predefined network_interface settled in the Constructor, just comment these lines
+=======
+    // Get MAC address from file and determine the network interface
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     std::string mac_address;
     if (getMacAddress(mac_address)) {
         network_interface_ = findInterfaceByMac(mac_address);
@@ -37,11 +53,18 @@ MotorControlNode::MotorControlNode()
 // Function to initialize the motor
 bool MotorControlNode::initialize_motor(int slave_id)
 {
+<<<<<<< HEAD
     std::string command= "terminator-terminal -- bash -c \"echo sudo setcap cap_net_admin,cap_net_raw=eip ~/Portable-ros2_ws/Servant_ws/install/ethercat_servo_control/lib/ethercat_servo_control/motor_control_node  \"{}\" && exit ;bash\"";
     std::system(command.c_str());
     // Initialize EtherCAT on the specified network interface
     char IOmap[4096];
     if (ec_init(network_interface_.c_str()))
+=======
+    // Initialize EtherCAT on the specified network interface
+    char IOmap[4096];
+    
+    if (ec_init(network_interface_.c_str()))  //network_interface_.c_str() // Note: LAN1-->"B4:4B:D6:5A:7B:31", LAN2-->"B4:4B:D6:5A:7B:32"
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     {
         if (ec_config(FALSE, &IOmap) > 0)  // ec_config() returns the number of slaves found
         {
@@ -53,7 +76,11 @@ bool MotorControlNode::initialize_motor(int slave_id)
         }
     } 
     else {
+<<<<<<< HEAD
         RCLCPP_ERROR(this->get_logger(), "Ethercat devices connection failed on interface %s. Permission Denied!", network_interface_.c_str());
+=======
+        RCLCPP_ERROR(this->get_logger(), "Failed to initialize EtherCAT on interface %s.", network_interface_.c_str());
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
         return false;
     }
 
@@ -62,6 +89,7 @@ bool MotorControlNode::initialize_motor(int slave_id)
     ec_slave[slave_id].state = EC_STATE_OPERATIONAL;  // Set to operational state
     ec_writestate(slave_id);
 
+<<<<<<< HEAD
     RCLCPP_INFO(this->get_logger(), "Slave: %s, State: %d", ec_slave[slave_id].name, ec_slave[slave_id].state); // state 8 == OPERATIONAL
 
     int8_t Operetion_mode = control_mode_;
@@ -83,10 +111,32 @@ bool MotorControlNode::initialize_motor(int slave_id)
 
     control_word = CONTROL_WORD_ON;  // Speed control enable  0x0F：Power on motor
     ec_SDOwrite(slave_id, CONTROL_WORD, 0x00, FALSE, sizeof(control_word), &control_word, ethercat_timeout_);
+=======
+    RCLCPP_INFO(this->get_logger(), "Slave: %s, State: %d", ec_slave[slave_id].name, ec_slave[slave_id].state);
+
+    int8_t control_mode = control_mode_;
+    int psize=sizeof(control_mode_);
+
+    // Set control mode (e.g., velocity mode)
+    ec_SDOwrite(slave_id, 0x6060, 0x00, FALSE, psize, &control_mode, ethercat_timeout_);
+    
+    // Read back the state to verify seted control mode
+    ec_SDOread( slave_id, 0x6060, 0x00, FALSE,&psize, &control_mode, ethercat_timeout_);
+    RCLCPP_INFO(this->get_logger(), "6060: %d ", control_mode_);
+    
+
+    // Verify if the motor is operational
+    uint16_t control_word = 0x06;  // Motor enable
+    ec_SDOwrite(slave_id, 0x6040, 0x00, FALSE, sizeof(control_word), &control_word, ethercat_timeout_);
+
+    control_word = 0x0F;  // Speed control enable
+    ec_SDOwrite(slave_id, 0x6040, 0x00, FALSE, sizeof(control_word), &control_word, ethercat_timeout_);
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
 
     // Read back the state to verify initialization
     uint16_t read_value;
     psize = sizeof(read_value);
+<<<<<<< HEAD
     std::string state_name;
 
     ec_SDOread(slave_id, CONTROL_WORD, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
@@ -112,13 +162,34 @@ bool MotorControlNode::initialize_motor(int slave_id)
     int init_Kvp   = 90; 
 
     rclcpp::sleep_for(std::chrono::milliseconds(5));
+=======
+    ec_SDOread(slave_id, 0x6040, 0x00, FALSE, &psize, &read_value, ethercat_timeout_);
+
+    if (read_value == 0x0F) {
+        motor_initialized_ = true;
+        RCLCPP_INFO(this->get_logger(), "Motor %d initialized successfully!", slave_id);
+        return true;
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Motor %d failed to initialize!", slave_id);
+        return false;
+    }
+
+    // Pre set value (This values from the old code)
+    int init_speed = 0;
+    int init_acc   = 1.5;
+    int init_Kvp   = 90; 
+
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     send_motor_speed(init_speed, slave_id); 
     set_motor_acceleration(init_acc, slave_id);
     set_motor_kvp(init_Kvp, slave_id);
 
+<<<<<<< HEAD
     // Test the motor 
     motorTestLoop(slave_id);
     return true; 
+=======
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
 }
 
 // Find interface by MAC address
@@ -189,6 +260,7 @@ void MotorControlNode::send_motor_speed(int speed_rpm, int slave_id)
         return;
     }
 
+<<<<<<< HEAD
     // Convert RPM to the dec value expected by the motor and send it  
     double motor_value = ((speed_rpm * 512 * encoder_resiulution) / 1875) * reduction_ratio_; // The equation from the datasheet
     int32_t s32val = static_cast<int32_t>(motor_value);
@@ -202,12 +274,31 @@ void MotorControlNode::set_motor_acceleration(int acceleration, int slave_id)
     acc_RPM = acceleration*(M_PI*2 * wheel_radius_) *reduction_ratio_; //revolution per s^2
     int32 acc_dec=int((acc_RPM * 65536 * encoder_resiulution) / 4000000); // Equation from the datasheet
     
+=======
+    // Convert RPM to the value expected by the motor and send it  
+    double motor_value = speed_rpm * 17896 * reduction_ratio_;
+    int32_t s32val = static_cast<int32_t>(motor_value);
+    ec_SDOwrite(slave_id, 0x60FF, 0x00, FALSE, sizeof(s32val), &s32val, ethercat_timeout_);
+}
+
+// Function to send motor acceleration commands  
+void MotorControlNode::set_motor_acceleration(int acceleration, int slave_id)
+{
+    int rps=1074; // 1 rps = 1074 Dec
+    acceleration=acceleration*(M_PI*2 * wheel_radius_) *reduction_ratio_; //revolution per s^2
+    int32 acc_val=int(acceleration*rps); // dec
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     while(ec_state_ && rclcpp::ok()) {
     rclcpp::sleep_for(std::chrono::milliseconds(5));
     }
     ec_state_ = true;
+<<<<<<< HEAD
     ec_SDOwrite(slave_id, PROFILE_ACCELERATION, 0x00, FALSE, sizeof(acc_dec), &acc_dec, ethercat_timeout_); // Acc
     ec_SDOwrite(slave_id, PROFILE_DECELERATION, 0x00, FALSE, sizeof(acc_dec), &acc_dec, ethercat_timeout_); // Dcc
+=======
+    ec_SDOwrite(slave_id, 0x6083, 0x00, FALSE, sizeof(acc_val), &acc_val, ethercat_timeout_); // Acc
+    ec_SDOwrite(slave_id, 0x6084, 0x00, FALSE, sizeof(acc_val), &acc_val, ethercat_timeout_); // Dcc
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     ec_state_ = false;
 }
 
@@ -221,7 +312,11 @@ void MotorControlNode::set_motor_kvp(int value, int slave_id)
 
     ec_state_ = true;
     // Write the kvp value to the motor  
+<<<<<<< HEAD
     ec_SDOwrite(slave_id, KVP, 0x01, FALSE, sizeof(kvp_0), &kvp_0, ethercat_timeout_);
+=======
+    ec_SDOwrite(slave_id, 0x60F9, 0x01, FALSE, sizeof(kvp_0), &kvp_0, ethercat_timeout_);
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     ec_state_ = false;
 
     RCLCPP_WARN(this->get_logger(), "Motor %d kvp_0 set to %d", slave_id, kvp_0);
@@ -230,6 +325,7 @@ void MotorControlNode::set_motor_kvp(int value, int slave_id)
 // Callback for /cmd_vel topic
 void MotorControlNode::cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
+<<<<<<< HEAD
     // Check if the linear and angular velocities are the same as the past message
     if (past_twist_msg.linear.x == msg->linear.x && 
         past_twist_msg.angular.z == msg->angular.z)
@@ -316,6 +412,18 @@ void MotorControlNode::motorTestLoop(int slave_id) {
             std::cout << "Invalid input. Please enter a number for RPM or 'q' to quit." << std::endl;
         }
     }
+=======
+    // Calculate the motor speeds for left and right motors based on the Twist message
+    double right_motor_speed = msg->linear.x + msg->angular.z * wheel_base_ / 2;
+    double left_motor_speed = msg->linear.x - msg->angular.z * wheel_base_ / 2;
+
+    int right_rpm = static_cast<int>((right_motor_speed / (2 * M_PI * wheel_radius_)) * 60);
+    int left_rpm = static_cast<int>((left_motor_speed / (2 * M_PI * wheel_radius_)) * 60);
+
+    // Send speed commands to the motors
+    send_motor_speed(right_rpm, 1);  // Send speed to right motor (slave 1)
+    send_motor_speed(left_rpm, 2);   // Send speed to left motor (slave 2)
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
 }
 
 // Main function
@@ -331,6 +439,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+<<<<<<< HEAD
     /* if (!motor_control_node->initialize_motor(2)) {
         RCLCPP_ERROR(motor_control_node->get_logger(), "Failed to initialize left motor ");
         return 1;
@@ -340,6 +449,14 @@ int main(int argc, char *argv[])
     motor_control_node->send_motor_speed(0, 1);
     // motor_control_node->send_motor_speed(0, 2);
     ec_close();
+=======
+    if (!motor_control_node->initialize_motor(2)) {
+        RCLCPP_ERROR(motor_control_node->get_logger(), "Failed to initialize left motor ");
+        return 1;
+    }
+
+    rclcpp::spin(motor_control_node);
+>>>>>>> 3a50146f5e52bca35aa463bec3988bebebd4e223
     rclcpp::shutdown();
     return 0;
 }
