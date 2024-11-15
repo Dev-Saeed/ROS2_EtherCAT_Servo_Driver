@@ -2,13 +2,16 @@
 
 This package provides a hardware interface to control a Kinco Servo motor over the EtherCAT protocol in ROS2.
 ---
-It subscribes to velocity commands on the `/cmd_vel` topic and translates them into EtherCAT commands for motor control.
+- *Subscribes to **/cmd_vel** for velocity commands and translates them into EtherCAT commands for motor control.*
+- *Provides services to dynamically set motor parameters such as acceleration, deceleration, and Kvp (velocity proportional gain).*
 
 ---
 
 ## Prerequisites
 
-Before building this package, you need to install the SOEM library to enable EtherCAT communication. Follow these steps:
+### SOEM Library Installation
+
+To enable EtherCAT communication, you need to install the SOEM library:
 
 ```bash
 # Clone and install SOEM library
@@ -22,9 +25,16 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
 sudo make install
 ```
 
----
+### Ethernet Device Setup
 
-## Permissions Setup
+You must create a file named `ethercatdevices.txt` in your home directory. This file should contain only the MAC address of the Ethernet interface used for EtherCAT communication. The node reads this file to automatically identify the correct network interface.
+
+```bash
+# Example of creating the file
+echo "00:1A:2B:3C:4D:5E" > ~/ethercatdevices.txt
+```
+
+### Permissions Setup
 
 To allow the node to control network interfaces and access raw sockets (required for EtherCAT), perform the following steps:
 
@@ -33,13 +43,12 @@ To allow the node to control network interfaces and access raw sockets (required
    ```bash
    sudo setcap cap_net_admin,cap_net_raw=eip ~/HardwareInterface_ws/install/ethercat_servo_control/lib/ethercat_servo_control/motor_control_node
    ```
-   - **cap_net_admin**: Allows network management actions.
-   - **cap_net_raw**: Grants permission to use raw network sockets, essential for EtherCAT.
 
 2. **Add ROS2 Library Path**  
    If you encounter errors while running the node, set the ROS2 library path permanently:
    ```bash
    echo "/opt/ros/humble/lib" | sudo tee /etc/ld.so.conf.d/ros2.conf
+   echo "$HOME/ path/to/workspace/ install/servo_msgs/lib" | sudo tee /etc/ld.so.conf.d/servo_msgs.conf
    sudo ldconfig
    ```
 
@@ -90,7 +99,7 @@ Sets the Kvp (velocity proportional gain) parameter, tuning motor responsiveness
 
 Provides a command-line loop to test motor RPM. Accepts user input for RPM, applies the command, then monitors motor response.
 - **Loop Interaction**: Allows user RPM input or exits on `q`.
-- **Motor Commanding**: Issues RPM commands and logs feedback.
+- **Motor Commanding**: Sends the RPM value to the motor, retrieves real-time motor diagnostics (real speed, status word, control word, operation mode), and logs the results.
 
 #### **MotorControlNode::getMacAddress(std::string& mac)**
 
@@ -103,6 +112,22 @@ Reads a pre-stored MAC address from a file for determining network interface com
 Searches for the network interface based on MAC address.
 - **Interface Matching**: Iterates through available network interfaces and compares MAC addresses.
 
+## Services
+#### **MotorControlNode::set_acceleration_callback**
+- **Service: set_acceleration**
+Dynamically sets the motor's acceleration and deceleration values during runtime.
+Example usage:
+```bash
+ros2 service call /set_acceleration servo_msgs/srv/SetAcceleration "{acceleration: 200, slave_id: 1}"
+```
+
+#### **MotorControlNode::set_kvp_callback**
+- **Service: set_kvp**
+Dynamically sets the Kvp parameter during runtime for fine-tuning motor responsiveness.
+Example usage:
+```bash
+ros2 service call /set_kvp servo_msgs/srv/SetKvp "{kvp: 90, slave_id: 1}"
+```
 ---
 
 ### Final Note
@@ -111,5 +136,3 @@ Searches for the network interface based on MAC address.
  For more details, consult the Kinco Servo user manual, where all register addresses are documented. 
 
 --- 
-
-
