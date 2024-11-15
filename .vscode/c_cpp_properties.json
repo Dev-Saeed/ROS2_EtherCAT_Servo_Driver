@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/dev/etherCAT_ws/install/ethercat_msgs/include/**",
+        "/home/dev/etherCAT_ws/install/ethercat_generic_cia402_drive/include/**",
+        "/home/dev/etherCAT_ws/install/ethercat_generic_slave/include/**",
+        "/home/dev/etherCAT_ws/install/ethercat_driver/include/**",
+        "/home/dev/etherCAT_ws/install/ethercat_interface/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/dev/etherCAT_ws/src/ethercat_driver_ros2-humble/ethercat_driver/include/**",
+        "/home/dev/etherCAT_ws/src/ethercat_driver_ros2-humble/ethercat_generic_plugins/ethercat_generic_cia402_drive/include/**",
+        "/home/dev/etherCAT_ws/src/ethercat_driver_ros2-humble/ethercat_generic_plugins/ethercat_generic_slave/include/**",
+        "/home/dev/etherCAT_ws/src/ethercat_driver_ros2-humble/ethercat_interface/include/**",
+        "/home/dev/etherCAT_ws/src/ethercat_driver_ros2-humble/ethercat_manager/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
